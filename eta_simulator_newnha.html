@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;padding:16px;color:#1a1a1a}
+
+  .road{position:relative;height:72px;background:#e8e6e0;border-radius:12px;overflow:hidden;margin-bottom:14px;border:1px solid #d0cec8}
+  .road-line{position:absolute;top:50%;left:0;right:0;height:2px;background:repeating-linear-gradient(90deg,#b0aea8 0,#b0aea8 18px,transparent 18px,transparent 32px);transform:translateY(-50%);opacity:.5}
+  .car{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:16px;background:#185FA5;border-radius:5px;transition:left .35s ease;z-index:10}
+  .car::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.7)}
+  .dest{position:absolute;right:18px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:2.5px solid #1a1a1a;background:#fff;display:flex;align-items:center;justify-content:center}
+  .dest-dot{width:9px;height:9px;border-radius:50%;background:#E24B4A}
+
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .metric{background:#fff;border-radius:10px;padding:11px 14px;border:1px solid #e0deda}
+  .metric-label{font-size:11px;color:#888780;margin-bottom:5px;letter-spacing:.02em}
+  .metric-val{font-size:22px;font-weight:600;color:#1a1a1a;line-height:1}
+  .metric-unit{font-size:11px;color:#888780;margin-left:2px}
+  .metric-delta{font-size:11px;margin-top:4px;min-height:14px}
+  .delta-up{color:#A32D2D;font-weight:500}
+  .delta-dn{color:#0F6E56;font-weight:500}
+
+  .ctrl-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .ctrl-btn{padding:7px 16px;border-radius:8px;border:1px solid #d0cec8;font-size:13px;font-weight:500;cursor:pointer;background:#fff;color:#1a1a1a;transition:background .12s}
+  .ctrl-btn:hover{background:#f0ede8}
+  .ctrl-btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+  .ctrl-btn.primary:hover{background:#0c447c}
+
+  .section-label{font-size:11px;color:#888780;letter-spacing:.04em;text-transform:uppercase;margin-bottom:7px}
+  .trig-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .trig-btn{padding:5px 13px;border-radius:20px;border:1px solid #d0cec8;font-size:12px;cursor:pointer;background:#fff;color:#444441;transition:background .12s}
+  .trig-btn:hover{background:#f0ede8}
+  .trig-btn.danger{border-color:#F09595;color:#791F1F;background:#FCEBEB}
+  .trig-btn.danger:hover{background:#F7C1C1}
+  .trig-btn.success{border-color:#9FE1CB;color:#085041;background:#E1F5EE}
+  .trig-btn.success:hover{background:#9FE1CB}
+  .trig-btn.info{border-color:#B5D4F4;color:#0C447C;background:#E6F1FB}
+  .trig-btn.info:hover{background:#B5D4F4}
+  .trig-btn.warn{border-color:#FAC775;color:#633806;background:#FAEEDA}
+  .trig-btn.warn:hover{background:#FAC775}
+
+  .segs-title{font-size:12px;color:#5F5E5A;margin-bottom:7px;font-weight:500}
+  .seg-rows{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+  .seg-row{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#fff;border-radius:8px;border:1px solid #e0deda;cursor:pointer;transition:border-color .12s}
+  .seg-row:hover{border-color:#b0aea8}
+  .seg-row.active-seg{border-color:#185FA5;background:#f0f6fc}
+  .seg-name{font-size:13px;font-weight:500;color:#1a1a1a;width:84px;flex-shrink:0}
+  .bar-bg{flex:1;height:8px;background:#e8e6e0;border-radius:4px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:4px;transition:width .35s,background .35s}
+  .seg-spd{font-size:12px;color:#5F5E5A;width:52px;text-align:right;flex-shrink:0}
+  .seg-edit{display:none;align-items:center;gap:6px;padding:5px 12px 8px 12px}
+  .seg-edit.show{display:flex}
+  .spd-btn{padding:3px 10px;border-radius:6px;border:1px solid #d0cec8;font-size:12px;cursor:pointer;background:#fff;color:#1a1a1a}
+  .spd-btn:hover{background:#f0ede8}
+  .spd-lbl{font-size:12px;color:#888780}
+
+  .log-wrap{border:1px solid #e0deda;border-radius:10px;overflow:hidden}
+  .log-head{padding:8px 12px;background:#f5f4f0;font-size:12px;font-weight:500;color:#5F5E5A;border-bottom:1px solid #e0deda}
+  .log-body{max-height:128px;overflow-y:auto}
+  .log-row{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;border-bottom:1px solid #f0ede8}
+  .log-row:last-child{border-bottom:none}
+  .log-t{color:#b0aea8;width:40px;flex-shrink:0;font-variant-numeric:tabular-nums}
+  .log-ev{color:#185FA5;flex:1}
+  .log-val{font-weight:600;color:#1a1a1a}
+  .log-diff-up{color:#A32D2D;font-size:11px}
+  .log-diff-dn{color:#0F6E56;font-size:11px}
+  .log-empty{padding:14px 12px;font-size:12px;color:#b0aea8;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="road" id="road">
+  <div class="road-line"></div>
+  <div class="car" id="car" style="left:5%"></div>
+  <div class="dest"><div class="dest-dot"></div></div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">남은 거리</div>
+    <div style="display:flex;align-items:baseline;gap:2px">
+      <span class="metric-val" id="m-dist">38</span>
+      <span class="metric-unit">km</span>
+    </div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">현재 ETA</div>
+    <div style="display:flex;align-items:baseline;gap:2px">
+      <span class="metric-val" id="m-eta">34</span>
+      <span class="metric-unit">분</span>
+    </div>
+    <div class="metric-delta" id="m-delta"></div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">평균 속도</div>
+    <div style="display:flex;align-items:baseline;gap:2px">
+      <span class="metric-val" id="m-spd">71</span>
+      <span class="metric-unit">km/h</span>
+    </div>
+  </div>
+</div>
+
+<div class="ctrl-row">
+  <button class="ctrl-btn primary" id="btn-drive" onclick="toggleDrive()">주행 시작</button>
+  <button class="ctrl-btn" onclick="resetSim()">초기화</button>
+</div>
+
+<div class="section-label">이벤트 트리거</div>
+<div class="trig-row">
+  <button class="trig-btn danger" onclick="triggerEvent('사고 발생')">사고 발생</button>
+  <button class="trig-btn success" onclick="triggerEvent('정체 해소')">정체 해소</button>
+  <button class="trig-btn info" onclick="triggerEvent('우회로 발견')">우회로 발견</button>
+  <button class="trig-btn warn" onclick="triggerEvent('속도 단속')">속도 단속</button>
+</div>
+
+<div class="segs-title">구간별 교통 속도 — 클릭해서 수동 조정</div>
+<div class="seg-rows" id="seg-rows"></div>
+
+<div class="log-wrap">
+  <div class="log-head">ETA 재계산 로그</div>
+  <div class="log-body" id="log-body">
+    <div class="log-empty" id="log-empty">이벤트가 발생하면 여기에 기록됩니다</div>
+  </div>
+</div>
+
+<script>
+const SEGS=[
+  {name:'서울 시내',  dist:8,  spd:35,  base:35},
+  {name:'외곽 진입',  dist:10, spd:80,  base:80},
+  {name:'고속도로',   dist:14, spd:110, base:110},
+  {name:'나들목',     dist:6,  spd:60,  base:60},
+];
+let driving=false,tick=null,progress=0,elapsed=0,prevEta=null,selSeg=null;
+
+function totalDist(){return SEGS.reduce((s,g)=>s+g.dist,0);}
+function calcEta(){
+  let pos=progress*totalDist(),done=0,sum=0;
+  SEGS.forEach(g=>{
+    let start=done,end=done+g.dist;
+    if(pos<end){let rem=end-Math.max(pos,start);sum+=rem/g.spd*60;}
+    done+=g.dist;
+  });
+  return Math.max(0,Math.round(sum));
+}
+function avgSpd(){return Math.round(SEGS.reduce((s,g)=>s+g.spd,0)/SEGS.length);}
+function remDist(){return Math.max(0,Math.round(totalDist()*(1-progress)));}
+function barColor(spd,base){
+  const r=spd/base;
+  return r>0.8?'#1D9E75':r>0.5?'#EF9F27':'#E24B4A';
+}
+
+function renderSegs(){
+  const c=document.getElementById('seg-rows');
+  c.innerHTML='';
+  SEGS.forEach((g,i)=>{
+    const wrap=document.createElement('div');
+
+    const row=document.createElement('div');
+    row.className='seg-row'+(selSeg===i?' active-seg':'');
+    row.innerHTML=`
+      <span class="seg-name">${g.name}</span>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(g.spd/g.base*100)}%;background:${barColor(g.spd,g.base)}"></div></div>
+      <span class="seg-spd">${g.spd} km/h</span>`;
+    row.onclick=()=>{selSeg=selSeg===i?null:i;renderSegs();};
+
+    const edit=document.createElement('div');
+    edit.className='seg-edit'+(selSeg===i?' show':'');
+    edit.innerHTML=`
+      <span class="spd-lbl">속도 조정</span>
+      <button class="spd-btn" onclick="adjSpd(${i},-20)">−20</button>
+      <button class="spd-btn" onclick="adjSpd(${i},-10)">−10</button>
+      <button class="spd-btn" onclick="adjSpd(${i},+10)">+10</button>
+      <button class="spd-btn" onclick="adjSpd(${i},+20)">+20</button>`;
+
+    wrap.appendChild(row);
+    wrap.appendChild(edit);
+    c.appendChild(wrap);
+  });
+}
+
+function adjSpd(i,d){
+  SEGS[i].spd=Math.max(10,Math.min(130,SEGS[i].spd+d));
+  updateMetrics('수동 교통 변경');
+  renderSegs();
+}
+
+function updateMetrics(reason){
+  const eta=calcEta();
+  document.getElementById('m-dist').textContent=remDist();
+  document.getElementById('m-eta').textContent=eta;
+  document.getElementById('m-spd').textContent=avgSpd();
+  const dEl=document.getElementById('m-delta');
+  if(prevEta!==null&&reason){
+    const diff=eta-prevEta;
+    if(diff>0) dEl.innerHTML=`<span class="delta-up">+${diff}분 증가</span>`;
+    else if(diff<0) dEl.innerHTML=`<span class="delta-dn">${diff}분 단축</span>`;
+    else dEl.innerHTML='';
+    if(diff!==0) addLog(elapsed,reason,eta,diff);
+  }
+  prevEta=eta;
+}
+
+function addLog(t,reason,eta,diff){
+  const body=document.getElementById('log-body');
+  const empty=document.getElementById('log-empty');
+  if(empty) empty.remove();
+  const row=document.createElement('div');
+  row.className='log-row';
+  const sign=diff>0?'+':'';
+  const diffCls=diff>0?'log-diff-up':'log-diff-dn';
+  row.innerHTML=`
+    <span class="log-t">${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}</span>
+    <span class="log-ev">${reason}</span>
+    <span class="log-val">${eta}분</span>
+    <span class="${diffCls}">&nbsp;${sign}${diff}분</span>`;
+  body.insertBefore(row,body.firstChild);
+}
+
+function triggerEvent(name){
+  if(name==='사고 발생'){SEGS[2].spd=Math.max(10,SEGS[2].spd-55);SEGS[1].spd=Math.max(15,SEGS[1].spd-25);}
+  else if(name==='정체 해소'){SEGS.forEach(g=>g.spd=Math.min(g.base,g.spd+30));}
+  else if(name==='우회로 발견'){SEGS[2].spd=Math.min(SEGS[2].base,SEGS[2].spd+25);SEGS[3].spd=Math.min(SEGS[3].base,SEGS[3].spd+15);}
+  else if(name==='속도 단속'){SEGS[2].spd=Math.min(SEGS[2].base,Math.max(SEGS[2].spd-10,90));}
+  updateMetrics(name);
+  renderSegs();
+}
+
+function moveCar(){
+  document.getElementById('car').style.left=(5+progress*83)+'%';
+}
+
+function toggleDrive(){
+  driving=!driving;
+  document.getElementById('btn-drive').textContent=driving?'정지':'주행 시작';
+  if(driving){
+    tick=setInterval(()=>{
+      if(progress>=1){clearInterval(tick);driving=false;document.getElementById('btn-drive').textContent='도착';return;}
+      const spd=avgSpd();
+      progress=Math.min(1,progress+spd/(totalDist()*3600)*6);
+      elapsed++;
+      moveCar();
+      if(elapsed%6===0) updateMetrics(null);
+      document.getElementById('m-dist').textContent=remDist();
+      document.getElementById('m-eta').textContent=calcEta();
+    },200);
+  } else {
+    clearInterval(tick);
+  }
+}
+
+function resetSim(){
+  clearInterval(tick);driving=false;progress=0;elapsed=0;prevEta=null;selSeg=null;
+  SEGS.forEach(g=>g.spd=g.base);
+  document.getElementById('btn-drive').textContent='주행 시작';
+  document.getElementById('m-delta').innerHTML='';
+  document.getElementById('log-body').innerHTML='<div class="log-empty" id="log-empty">이벤트가 발생하면 여기에 기록됩니다</div>';
+  moveCar();updateMetrics(null);renderSegs();
+}
+
+renderSegs();updateMetrics(null);moveCar();
+</script>
+</body>
+</html>
