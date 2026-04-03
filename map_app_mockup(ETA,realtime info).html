@@ -1,0 +1,464 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#e8e5de;display:flex;justify-content:center;padding:16px}
+.phone{width:340px;background:#f0ede8;border-radius:20px;overflow:hidden;border:1px solid #c8c5be;position:relative}
+
+/* MAP */
+.map{position:relative;height:420px;background:#dde8d0;overflow:hidden;cursor:crosshair}
+.map-bg{position:absolute;inset:0}
+
+/* road grid */
+.road-h{position:absolute;left:0;right:0;height:9px;background:#fff;border-top:1px solid #ccc;border-bottom:1px solid #ccc}
+.road-v{position:absolute;top:0;bottom:0;width:9px;background:#fff;border-left:1px solid #ccc;border-right:1px solid #ccc}
+.road-major-h{height:14px;background:#fff;border-top:1.5px solid #bbb;border-bottom:1.5px solid #bbb}
+.road-major-v{width:14px;background:#fff}
+
+/* traffic overlays */
+.traf{position:absolute;pointer-events:none;border-radius:2px;transition:background .5s}
+
+/* POI pins */
+.poi{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:20}
+.poi-pin{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid rgba(0,0,0,.15);transition:transform .15s}
+.poi:hover .poi-pin{transform:rotate(-45deg) scale(1.15)}
+.poi-icon{transform:rotate(45deg);font-size:13px;line-height:1}
+.poi-label{position:absolute;top:28px;left:50%;transform:translateX(-50%);background:#fff;border-radius:5px;padding:2px 6px;font-size:10px;font-weight:600;color:#222;white-space:nowrap;border:0.5px solid #d0cec8;opacity:0;transition:opacity .15s;pointer-events:none}
+.poi:hover .poi-label{opacity:1}
+
+/* route line */
+.route-seg{position:absolute;pointer-events:none;z-index:15}
+
+/* my location */
+.myloc{position:absolute;width:18px;height:18px;border-radius:50%;background:#185FA5;border:3px solid #fff;transform:translate(-50%,-50%);z-index:30;box-shadow:0 0 0 4px rgba(24,95,165,.2);transition:left .6s ease,top .6s ease}
+
+/* destination */
+.dest-pin{position:absolute;transform:translate(-50%,-100%);z-index:25}
+.dest-pin-body{width:24px;height:30px;background:#E24B4A;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;display:flex;align-items:center;justify-content:center}
+.dest-pin-dot{width:8px;height:8px;border-radius:50%;background:#fff;transform:rotate(45deg)}
+
+/* top bar */
+.topbar{position:absolute;top:12px;left:12px;right:12px;z-index:40;display:flex;gap:8px}
+.searchbox{flex:1;background:#fff;border-radius:10px;padding:9px 12px;font-size:13px;color:#444;border:0.5px solid #d0cec8;display:flex;align-items:center;gap:6px}
+.search-icon{width:14px;height:14px;border-radius:50%;border:2px solid #888;position:relative;flex-shrink:0}
+.search-icon::after{content:'';position:absolute;bottom:-4px;right:-4px;width:5px;height:2px;background:#888;border-radius:1px;transform:rotate(45deg)}
+.map-btn{width:36px;height:36px;background:#fff;border-radius:10px;border:0.5px solid #d0cec8;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+
+/* layer toggle */
+.layer-row{position:absolute;top:62px;right:12px;z-index:40;display:flex;flex-direction:column;gap:6px}
+.layer-chip{background:#fff;border-radius:8px;border:0.5px solid #d0cec8;padding:5px 8px;font-size:10px;font-weight:600;cursor:pointer;color:#444;text-align:center;transition:background .12s,color .12s;line-height:1.2}
+.layer-chip.on{background:#185FA5;color:#fff;border-color:#185FA5}
+
+/* ETA card */
+.eta-card{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;z-index:50;padding:14px 16px 12px;border-top:0.5px solid #e0deda}
+.eta-row{display:flex;align-items:center;gap:0;margin-bottom:10px}
+.eta-min{font-size:32px;font-weight:700;color:#1a1a1a;line-height:1}
+.eta-unit{font-size:13px;color:#888;margin-left:3px;margin-top:8px}
+.eta-dist{font-size:13px;color:#888;margin-left:10px;margin-top:8px}
+.eta-traffic{font-size:11px;padding:2px 8px;border-radius:10px;margin-left:8px;margin-top:6px;font-weight:600}
+.eta-traffic.good{background:#E1F5EE;color:#085041}
+.eta-traffic.slow{background:#FAEEDA;color:#633806}
+.eta-traffic.jam{background:#FCEBEB;color:#791F1F}
+.eta-delta{font-size:11px;margin-top:2px;min-height:14px}
+.delta-up{color:#A32D2D;font-weight:600}
+.delta-dn{color:#0F6E56;font-weight:600}
+
+.route-btns{display:flex;gap:6px;margin-bottom:10px}
+.route-btn{flex:1;padding:7px 0;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;border:1px solid #d0cec8;background:#f5f4f0;color:#444;transition:background .12s}
+.route-btn.active{background:#185FA5;color:#fff;border-color:#185FA5}
+.start-btn{width:100%;padding:11px;border-radius:11px;background:#185FA5;color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:background .12s}
+.start-btn:hover{background:#0c447c}
+.start-btn.nav-active{background:#E24B4A}
+
+/* navi overlay */
+.navi-overlay{position:absolute;top:0;left:0;right:0;z-index:45;background:#185FA5;padding:12px 14px 10px;display:none}
+.navi-overlay.show{display:block}
+.navi-dir{font-size:13px;color:rgba(255,255,255,.8);margin-bottom:2px}
+.navi-road{font-size:18px;font-weight:700;color:#fff}
+.navi-dist-badge{display:inline-block;background:rgba(255,255,255,.2);border-radius:6px;padding:2px 8px;font-size:12px;color:#fff;margin-top:4px}
+
+/* event toast */
+.toast{position:absolute;bottom:170px;left:12px;right:12px;background:#1a1a1a;color:#fff;border-radius:10px;padding:10px 14px;font-size:12px;z-index:60;display:none;line-height:1.5}
+.toast.show{display:block}
+.toast-title{font-weight:600;margin-bottom:2px}
+.toast-sub{color:rgba(255,255,255,.7)}
+
+/* event buttons */
+.event-row{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px 4px;border-top:0.5px solid #e8e6e0}
+.ev-label{font-size:10px;color:#888;width:100%;margin-bottom:3px}
+.ev-btn{padding:5px 10px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid;transition:opacity .12s}
+.ev-btn:hover{opacity:.8}
+.ev-acc{background:#FCEBEB;color:#791F1F;border-color:#F09595}
+.ev-clear{background:#E1F5EE;color:#085041;border-color:#9FE1CB}
+.ev-cam{background:#FAEEDA;color:#633806;border-color:#FAC775}
+.ev-alt{background:#E6F1FB;color:#0C447C;border-color:#B5D4F4}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- MAP AREA -->
+  <div class="map" id="map">
+
+    <!-- Background roads grid -->
+    <div class="map-bg">
+      <!-- horizontal roads -->
+      <div class="road-h road-major-h" style="top:105px"></div>
+      <div class="road-h" style="top:155px"></div>
+      <div class="road-h" style="top:205px"></div>
+      <div class="road-h road-major-h" style="top:265px"></div>
+      <div class="road-h" style="top:320px"></div>
+      <div class="road-h" style="top:370px"></div>
+      <!-- vertical roads -->
+      <div class="road-v" style="left:60px"></div>
+      <div class="road-v road-major-v" style="left:130px"></div>
+      <div class="road-v" style="left:195px"></div>
+      <div class="road-v road-major-v" style="left:255px"></div>
+      <div class="road-v" style="left:305px"></div>
+    </div>
+
+    <!-- Traffic overlays -->
+    <div class="traf" id="t1" style="top:106px;left:131px;width:125px;height:12px"></div>
+    <div class="traf" id="t2" style="top:106px;left:256px;width:60px;height:12px"></div>
+    <div class="traf" id="t3" style="top:266px;left:62px;width:70px;height:12px"></div>
+    <div class="traf" id="t4" style="top:266px;left:131px;width:125px;height:12px"></div>
+    <div class="traf" id="t5" style="top:106px;left:131px;width:12px;height:160px"></div>
+
+    <!-- Route line (SVG overlay) -->
+    <svg style="position:absolute;inset:0;width:100%;height:100%;z-index:15;pointer-events:none" id="route-svg">
+      <path id="route-path" d="" stroke="#185FA5" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+      <path id="route-path2" d="" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 8" opacity="0.6"/>
+    </svg>
+
+    <!-- POI pins -->
+    <div class="poi" style="left:80px;top:150px" title="주유소" onclick="showPoiInfo('GS칼텍스 강남점','주유소','24시간 · 셀프 가능 · LPG ✓')">
+      <div class="poi-pin" style="background:#EF9F27"><div class="poi-icon">⛽</div></div>
+      <div class="poi-label">주유소</div>
+    </div>
+    <div class="poi" style="left:210px;top:200px" onclick="showPoiInfo('스타벅스 테헤란로점','카페','07:00–22:00 · 와이파이 · 콘센트')">
+      <div class="poi-pin" style="background:#1D9E75"><div class="poi-icon">☕</div></div>
+      <div class="poi-label">카페</div>
+    </div>
+    <div class="poi" style="left:270px;top:140px" onclick="showPoiInfo('롯데월드몰 주차장','주차','요금 1,000원/10분 · 최대높이 2.1m')">
+      <div class="poi-pin" style="background:#534AB7"><div class="poi-icon">P</div></div>
+      <div class="poi-label">주차</div>
+    </div>
+    <div class="poi" style="left:170px;top:310px" onclick="showPoiInfo('씨엠병원','병원','응급실 운영 · 내과·외과·정형외과')">
+      <div class="poi-pin" style="background:#E24B4A"><div class="poi-icon">+</div></div>
+      <div class="poi-label">병원</div>
+    </div>
+    <div class="poi" style="left:300px;top:260px" onclick="showPoiInfo('국민은행 ATM','ATM','24시간 · 외화환전 가능')">
+      <div class="poi-pin" style="background:#185FA5"><div class="poi-icon">$</div></div>
+      <div class="poi-label">ATM</div>
+    </div>
+
+    <!-- My location dot -->
+    <div class="myloc" id="myloc" style="left:137px;top:278px"></div>
+
+    <!-- Destination pin (hidden until navigation) -->
+    <div class="dest-pin" id="dest-pin" style="left:295px;top:122px;display:none">
+      <div class="dest-pin-body"><div class="dest-pin-dot"></div></div>
+    </div>
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="searchbox">
+        <div class="search-icon"></div>
+        <span style="color:#bbb">목적지 검색...</span>
+      </div>
+      <div class="map-btn" onclick="togglePoi()">📍</div>
+    </div>
+
+    <!-- Layer toggles -->
+    <div class="layer-row">
+      <div class="layer-chip on" id="lyr-traf" onclick="toggleLayer('traf')">교통</div>
+      <div class="layer-chip on" id="lyr-poi" onclick="toggleLayer('poi')">장소</div>
+      <div class="layer-chip" id="lyr-sat" onclick="toggleLayer('sat')">위성</div>
+    </div>
+
+    <!-- Navi instruction overlay -->
+    <div class="navi-overlay" id="navi-overlay">
+      <div class="navi-dir">500m 후 우회전</div>
+      <div class="navi-road">테헤란로</div>
+      <div class="navi-dist-badge" id="navi-dist">3.2km 남음</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+      <div class="toast-title" id="toast-title"></div>
+      <div class="toast-sub" id="toast-sub"></div>
+    </div>
+
+  </div><!-- /map -->
+
+  <!-- ETA CARD -->
+  <div class="eta-card">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div>
+        <div class="eta-row">
+          <span class="eta-min" id="eta-min">--</span>
+          <span class="eta-unit">분</span>
+          <span class="eta-dist" id="eta-dist">목적지를 선택하세요</span>
+          <span class="eta-traffic" id="eta-traffic" style="display:none"></span>
+        </div>
+        <div class="eta-delta" id="eta-delta"></div>
+      </div>
+      <div style="font-size:11px;color:#aaa;text-align:right;padding-top:4px" id="eta-updated"></div>
+    </div>
+    <div class="route-btns" id="route-btns" style="display:none">
+      <div class="route-btn active" onclick="selectRoute(0)">최단시간<br><span style="font-weight:400;color:#888" id="r0-sub">25분</span></div>
+      <div class="route-btn" onclick="selectRoute(1)">무료도로<br><span style="font-weight:400;color:#888" id="r1-sub">32분</span></div>
+      <div class="route-btn" onclick="selectRoute(2)">최단거리<br><span style="font-weight:400;color:#888" id="r2-sub">28분</span></div>
+    </div>
+    <button class="start-btn" id="start-btn" onclick="startNav()">목적지 설정</button>
+  </div>
+
+  <!-- EVENT TRIGGERS -->
+  <div class="event-row" id="event-row" style="display:none">
+    <div class="ev-label">실시간 이벤트 시뮬레이션</div>
+    <button class="ev-btn ev-acc" onclick="fireEvent('acc')">사고 발생</button>
+    <button class="ev-btn ev-clear" onclick="fireEvent('clear')">정체 해소</button>
+    <button class="ev-btn ev-cam" onclick="fireEvent('cam')">과속 단속</button>
+    <button class="ev-btn ev-alt" onclick="fireEvent('alt')">우회로 안내</button>
+  </div>
+
+</div><!-- /phone -->
+
+<script>
+const STATES = {
+  idle: 0,
+  destSet: 1,
+  navActive: 2
+};
+let state = STATES.idle;
+let trafficOn = true;
+let poiOn = true;
+let satOn = false;
+let currentEta = null;
+let prevEta = null;
+let navTick = null;
+let navProgress = 0;
+let etaUpdateInterval = null;
+let selectedRoute = 0;
+
+const ROUTES = [
+  {label:'최단시간', eta:25, dist:'8.4km'},
+  {label:'무료도로', eta:32, dist:'9.1km'},
+  {label:'최단거리', eta:28, dist:'7.8km'},
+];
+
+const TRAFFIC_COLORS = {
+  good: '#1D9E75',
+  slow: '#EF9F27',
+  jam:  '#E24B4A',
+  none: 'transparent'
+};
+
+let trafficState = {
+  t1:'good', t2:'good', t3:'slow', t4:'good', t5:'slow'
+};
+
+function applyTraffic(){
+  ['t1','t2','t3','t4','t5'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(!trafficOn){ el.style.background='transparent'; return; }
+    el.style.background = TRAFFIC_COLORS[trafficState[id]] || 'transparent';
+    el.style.opacity = '0.55';
+  });
+}
+
+function setRoute(){
+  const r = document.getElementById('route-path');
+  const r2 = document.getElementById('route-path2');
+  if(selectedRoute === 0){
+    r.setAttribute('d','M137,278 L137,265 L143,265 L143,112 L295,112');
+    r2.setAttribute('d','M137,278 L137,265 L143,265 L143,112 L295,112');
+    r.style.stroke='#185FA5';
+  } else if(selectedRoute === 1){
+    r.setAttribute('d','M137,278 L65,278 L65,112 L295,112');
+    r2.setAttribute('d','M137,278 L65,278 L65,112 L295,112');
+    r.style.stroke='#1D9E75';
+  } else {
+    r.setAttribute('d','M137,278 L137,112 L295,112');
+    r2.setAttribute('d','M137,278 L137,112 L295,112');
+    r.style.stroke='#534AB7';
+  }
+}
+
+function selectRoute(i){
+  selectedRoute = i;
+  document.querySelectorAll('.route-btn').forEach((b,j)=>b.classList.toggle('active', j===i));
+  const eta = ROUTES[i].eta;
+  setEta(eta, ROUTES[i].dist, true);
+  setRoute();
+}
+
+function setEta(min, dist, changed){
+  prevEta = currentEta;
+  currentEta = min;
+  const minEl = document.getElementById('eta-min');
+  const distEl = document.getElementById('eta-dist');
+  const deltaEl = document.getElementById('eta-delta');
+  const updEl = document.getElementById('eta-updated');
+  const trafEl = document.getElementById('eta-traffic');
+
+  minEl.textContent = min;
+  distEl.textContent = dist;
+  trafEl.style.display = 'inline-block';
+
+  const avgSpd = min > 0 ? Math.round(parseInt(dist)*60/min) : 0;
+  if(avgSpd > 50){ trafEl.className='eta-traffic good'; trafEl.textContent='원활'; }
+  else if(avgSpd > 25){ trafEl.className='eta-traffic slow'; trafEl.textContent='서행'; }
+  else { trafEl.className='eta-traffic jam'; trafEl.textContent='정체'; }
+
+  if(prevEta !== null && changed && prevEta !== currentEta){
+    const diff = currentEta - prevEta;
+    if(diff > 0) deltaEl.innerHTML=`<span class="delta-up">+${diff}분 재계산됨</span>`;
+    else deltaEl.innerHTML=`<span class="delta-dn">${diff}분 단축됨</span>`;
+    setTimeout(()=>{ deltaEl.innerHTML=''; }, 4000);
+  }
+
+  const now = new Date();
+  updEl.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} 업데이트`;
+}
+
+function startNav(){
+  if(state === STATES.idle){
+    state = STATES.destSet;
+    document.getElementById('dest-pin').style.display = 'block';
+    document.getElementById('route-btns').style.display = 'flex';
+    document.getElementById('start-btn').textContent = '안내 시작';
+    document.getElementById('event-row').style.display = 'flex';
+    document.getElementById('r0-sub').textContent = '25분';
+    document.getElementById('r1-sub').textContent = '32분';
+    document.getElementById('r2-sub').textContent = '28분';
+    setRoute();
+    setEta(25, '8.4km', false);
+    currentEta = 25;
+    showToast('목적지 설정됨','경로 3개를 비교해보세요');
+    applyTraffic();
+  } else if(state === STATES.destSet){
+    state = STATES.navActive;
+    document.getElementById('start-btn').textContent = '안내 종료';
+    document.getElementById('start-btn').classList.add('nav-active');
+    document.getElementById('navi-overlay').classList.add('show');
+    document.getElementById('route-btns').style.display = 'none';
+    startNavAnim();
+  } else if(state === STATES.navActive){
+    resetAll();
+  }
+}
+
+function startNavAnim(){
+  navProgress = 0;
+  const locs = [
+    {x:137,y:278},{x:137,y:240},{x:137,y:200},{x:137,y:160},{x:137,y:120},{x:200,y:112},{x:295,y:112}
+  ];
+  const dirs = ['직진','직진','직진 300m 후 우회전','직진','우회전','직진 500m','목적지 도착'];
+  let idx = 0;
+  navTick = setInterval(()=>{
+    if(idx >= locs.length-1){ clearInterval(navTick); showToast('목적지 도착!','안내를 종료합니다'); setTimeout(resetAll,2000); return; }
+    const loc = locs[idx];
+    document.getElementById('myloc').style.left = loc.x+'px';
+    document.getElementById('myloc').style.top  = loc.y+'px';
+    const distLeft = Math.round((locs.length-1-idx)*1.2*10)/10;
+    document.getElementById('navi-dist').textContent = distLeft.toFixed(1)+'km 남음';
+    document.getElementById('navi-overlay').querySelector('.navi-dir').textContent = dirs[idx] || '직진';
+    const newEta = Math.max(1, 25 - Math.round(idx * 3.5));
+    if(newEta !== currentEta) setEta(newEta, distLeft.toFixed(1)+'km', true);
+    idx++;
+  }, 1400);
+}
+
+function resetAll(){
+  clearInterval(navTick);
+  state = STATES.idle;
+  currentEta = null;
+  prevEta = null;
+  navProgress = 0;
+  document.getElementById('myloc').style.left='137px';
+  document.getElementById('myloc').style.top='278px';
+  document.getElementById('dest-pin').style.display='none';
+  document.getElementById('route-btns').style.display='none';
+  document.getElementById('start-btn').textContent='목적지 설정';
+  document.getElementById('start-btn').classList.remove('nav-active');
+  document.getElementById('navi-overlay').classList.remove('show');
+  document.getElementById('event-row').style.display='none';
+  document.getElementById('eta-min').textContent='--';
+  document.getElementById('eta-dist').textContent='목적지를 선택하세요';
+  document.getElementById('eta-traffic').style.display='none';
+  document.getElementById('eta-delta').innerHTML='';
+  document.getElementById('eta-updated').textContent='';
+  document.getElementById('route-path').setAttribute('d','');
+  document.getElementById('route-path2').setAttribute('d','');
+  trafficState = {t1:'good',t2:'good',t3:'slow',t4:'good',t5:'slow'};
+  applyTraffic();
+  document.getElementById('toast').classList.remove('show');
+}
+
+function toggleLayer(layer){
+  if(layer==='traf'){
+    trafficOn=!trafficOn;
+    document.getElementById('lyr-traf').classList.toggle('on',trafficOn);
+    applyTraffic();
+    showToast(trafficOn?'교통 레이어 ON':'교통 레이어 OFF', trafficOn?'실시간 정체 정보 표시 중':'교통 표시를 끕니다');
+  } else if(layer==='poi'){
+    poiOn=!poiOn;
+    document.getElementById('lyr-poi').classList.toggle('on',poiOn);
+    document.querySelectorAll('.poi').forEach(p=>p.style.display=poiOn?'block':'none');
+    showToast(poiOn?'장소 레이어 ON':'장소 레이어 OFF','');
+  } else if(layer==='sat'){
+    satOn=!satOn;
+    document.getElementById('lyr-sat').classList.toggle('on',satOn);
+    document.querySelector('.map').style.background=satOn?'#5a6b5a':'#dde8d0';
+    document.querySelectorAll('.road-h,.road-v').forEach(r=>r.style.opacity=satOn?'0.4':'1');
+    showToast(satOn?'위성 지도 ON':'일반 지도로 전환','');
+  }
+}
+
+function fireEvent(type){
+  if(type==='acc'){
+    trafficState.t1='jam'; trafficState.t5='jam';
+    applyTraffic();
+    const newEta = (currentEta||25)+7;
+    setEta(newEta, document.getElementById('eta-dist').textContent, true);
+    showToast('사고 발생 — ETA 재계산','테헤란로 상행 차량 접촉사고, +7분');
+  } else if(type==='clear'){
+    trafficState.t1='good'; trafficState.t3='good'; trafficState.t5='good';
+    applyTraffic();
+    const newEta = Math.max(5,(currentEta||25)-5);
+    setEta(newEta, document.getElementById('eta-dist').textContent, true);
+    showToast('정체 해소 — ETA 재계산','구간 속도 정상화, −5분');
+  } else if(type==='cam'){
+    showToast('과속 단속 카메라 POI 감지','현재 경로 2.3km 전방 단속 구간');
+  } else if(type==='alt'){
+    selectedRoute = (selectedRoute+1)%3;
+    document.querySelectorAll('.route-btn').forEach((b,j)=>b.classList.toggle('active',j===selectedRoute));
+    const r = ROUTES[selectedRoute];
+    setEta(r.eta, r.dist, true);
+    setRoute();
+    showToast('우회로 안내','더 빠른 경로가 발견되었습니다');
+  }
+}
+
+function showPoiInfo(name, cat, detail){
+  showToast(name+' · '+cat, detail);
+}
+
+let toastTimer = null;
+function showToast(title, sub){
+  const t = document.getElementById('toast');
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-sub').textContent = sub;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+applyTraffic();
+</script>
+</body>
+</html>
